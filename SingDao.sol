@@ -2,10 +2,11 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "./SafeMath.sol";
+import "./Ownable.sol";
 
 
-contract SingDao {
+contract SingDao is Ownable {
   /// @notice EIP-20 token name for this token
   string public constant name = "Singularity Dao";
 
@@ -20,6 +21,8 @@ contract SingDao {
 
   /// @notice Total number of tokens in circulation
   uint256 public totalSupply = 100_000_000e18;
+
+  ILocker public locker;
 
   mapping(address => mapping(address => uint96)) internal allowances;
 
@@ -68,14 +71,25 @@ contract SingDao {
   );
 
   constructor(address account) public {
-    require(
-      mintingAllowedAfter_ >= block.timestamp,
-      "SDAO::constructor: minting can only begin after deployment"
-    );
     balances[account] = uint96(totalSupply);
     emit Transfer(address(0), account, totalSupply);
   }
 
+
+
+  function mint(address dst, uint rawAmount) external onlyOwner {
+
+    // mint the amount
+    uint96 amount = safe96(rawAmount, "Sdao::mint: amount exceeds 96 bits");
+    totalSupply = safe96(SafeMath.add(totalSupply, amount), "Sdao::mint: totalSupply exceeds 96 bits");
+
+    // transfer the amount to the recipient
+    balances[dst] = add96(balances[dst], amount, "Sdao::mint: transfer amount overflows");
+    emit Transfer(address(0), dst, amount);
+
+    // move delegates
+    _moveDelegates(address(0), delegates[dst], amount);
+  }
 
 
   function allowance(address account, address spender)
@@ -134,6 +148,10 @@ contract SingDao {
 
       emit Approval(src, spender, newAllowance);
     }
+
+     if(address(locker) != address(0)){
+      locker.lockOrGetPenalty(src,dst);
+     }
 
     _transferTokens(src, dst, amount);
     return true;
@@ -357,4 +375,13 @@ contract SingDao {
     }
     return chainId;
   }
+
+  function setLocker(address _locker) external onlyOwner {
+    locker = ILocker(_locker);
+  }
+
+}
+
+interface ILocker {
+    function lockOrGetPenalty(address source, address dest)external returns(bool,uint256);
 }

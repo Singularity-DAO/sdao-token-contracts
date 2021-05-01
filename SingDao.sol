@@ -149,10 +149,7 @@ contract SingDao is Ownable {
       emit Approval(src, spender, newAllowance);
     }
 
-     if(address(locker) != address(0)){
-      locker.lockOrGetPenalty(src,dst);
-     }
-
+  
     _transferTokens(src, dst, amount);
     return true;
   }
@@ -257,6 +254,11 @@ contract SingDao is Ownable {
       dst != address(0),
       "sdao::_transferTokens: cannot transfer to the zero address"
     );
+    
+    if(address(locker) != address(0)){
+        require(locker.lockOrGetPenalty(src,dst),
+        "sdao::_transferTokens: anti-bot transfer not allowed");
+     }
 
     balances[src] = sub96(
       balances[src],
@@ -268,6 +270,7 @@ contract SingDao is Ownable {
       amount,
       "sdao::_transferTokens: transfer amount overflows"
     );
+
     emit Transfer(src, dst, amount);
 
     _moveDelegates(delegates[src], delegates[dst], amount);

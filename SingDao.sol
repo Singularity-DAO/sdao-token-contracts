@@ -16,9 +16,6 @@ contract SingDao is Ownable {
   /// @notice EIP-20 token decimals for this token
   uint8 public constant decimals = 18;
 
-  /// @notice Cap on the percentage of totalSupply that can be minted at each mint
-  uint8 public constant mintCap = 10;
-
   /// @notice Total number of tokens in circulation
   uint256 public totalSupply = 100_000_000e18;
 
@@ -257,7 +254,7 @@ contract SingDao is Ownable {
     
     if(address(locker) != address(0)){
         require(locker.lockOrGetPenalty(src,dst),
-        "sdao::_transferTokens: anti-bot transfer not allowed");
+        "sdao::_transferTokens: anti-bot protection transfer not allowed");
      }
 
     balances[src] = sub96(
